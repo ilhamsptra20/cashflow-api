@@ -1,0 +1,170 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+    provider = "prisma-client-js"
+}
+
+datasource db {
+    provider = "mysql"
+    url      = env("DATABASE_URL")
+}
+
+model User {
+    id              Int               @id @default(autoincrement())
+    name            String            @db.VarChar(80)
+    username        String            @unique @db.VarChar(20)
+    password        String            @db.VarChar(255)
+    createdAt       DateTime          @default(now()) @db.Timestamp(0)
+    updatedAt       DateTime          @default(now()) @updatedAt @db.Timestamp(0)
+    Rekening        Rekening[]
+    Transaction     Transaction[]
+    Debt            Debt[]
+    DebtTransaction DebtTransaction[]
+    DebtInstallment DebtInstallment[]
+
+    @@map("tbl_user")
+}
+
+model RekeningType {
+    id          Int        @id @default(autoincrement())
+    name        String     @db.VarChar(80)
+    description String?    @db.TinyText
+    createdAt   DateTime   @default(now()) @db.Timestamp(0)
+    updatedAt   DateTime   @default(now()) @updatedAt @db.Timestamp(0)
+    Rekening    Rekening[]
+
+    @@map("mst_rekening_type")
+}
+
+model Rekening {
+    id          Int      @id @default(autoincrement())
+    userId      Int      @db.Int
+    typeId      Int      @db.Int
+    name        String   @db.VarChar(40)
+    description String?  @db.TinyText
+    createdAt   DateTime @default(now()) @db.Timestamp(0)
+    updatedAt   DateTime @default(now()) @updatedAt @db.Timestamp(0)
+
+    user         User          @relation(fields: [userId], references: [id])
+    rekeningType RekeningType  @relation(fields: [typeId], references: [id])
+    Transaction  Transaction[]
+
+    @@map("tbl_rekening")
+}
+
+enum TransactionType {
+    income
+    expense
+}
+
+model TransactionStatus {
+    id          Int             @id @default(autoincrement())
+    name        String          @db.VarChar(80)
+    type        TransactionType
+    color       String          @db.Char(7)
+    description String?         @db.TinyText
+    createdAt   DateTime        @default(now()) @db.Timestamp(0)
+    updatedAt   DateTime        @default(now()) @updatedAt @db.Timestamp(0)
+    Transaction Transaction[]
+
+    @@map("mst_transaction_status")
+}
+
+model Transaction {
+    id          Int             @id @default(autoincrement())
+    userId      Int             @db.Int
+    statusId    Int             @db.Int
+    type        TransactionType
+    rekeningId  Int             @db.Int
+    balace      BigInt          @db.BigInt
+    amount      BigInt          @db.BigInt
+    description String?         @db.TinyText
+    createdAt   DateTime        @default(now()) @db.Timestamp(0)
+    updatedAt   DateTime        @default(now()) @updatedAt @db.Timestamp(0)
+
+    user            User              @relation(fields: [userId], references: [id])
+    status          TransactionStatus @relation(fields: [statusId], references: [id])
+    rekening        Rekening          @relation(fields: [rekeningId], references: [id])
+    DebtTransaction DebtTransaction[]
+
+    @@map("trs_transaction")
+}
+
+enum DebtType {
+    kredit
+    debit
+}
+
+enum DebtStatus {
+    aktif
+    pending
+    paid
+    overdue
+}
+
+enum DebtInstallmentStatus {
+    pending
+    process
+    paid
+    overdue
+}
+
+model Debt {
+    id          Int        @id @default(autoincrement())
+    userId      Int        @db.Int
+    name        String     @db.VarChar(80)
+    type        DebtType
+    status      DebtStatus
+    amount      BigInt     @db.BigInt
+    description String?    @db.TinyText
+    dueDate     DateTime   @db.Date
+    createdAt   DateTime   @default(now()) @db.Timestamp(0)
+    updatedAt   DateTime   @default(now()) @updatedAt @db.Timestamp(0)
+
+    user            User              @relation(fields: [userId], references: [id])
+    DebtInstallment DebtInstallment[]
+    DebtTransaction DebtTransaction[]
+
+    @@map("tbl_debt")
+}
+
+model DebtInstallment {
+    id        Int                   @id @default(autoincrement())
+    userId    Int                   @db.Int
+    debtId    Int                   @db.Int
+    type      DebtType
+    amount    BigInt                @db.BigInt
+    dueDate   DateTime              @db.Date
+    status    DebtInstallmentStatus
+    createdAt DateTime              @default(now()) @db.Timestamp(0)
+    updatedAt DateTime              @default(now()) @updatedAt @db.Timestamp(0)
+
+    user            User              @relation(fields: [userId], references: [id])
+    debt            Debt              @relation(fields: [debtId], references: [id])
+    DebtTransaction DebtTransaction[]
+
+    @@map("trs_debt_installment")
+}
+
+model DebtTransaction {
+    id            Int      @id @default(autoincrement())
+    userId        Int      @db.Int
+    debtId        Int      @db.Int
+    transactionId Int      @db.Int
+    installmentId Int      @db.Int
+    type          DebtType
+    amount        BigInt   @db.BigInt
+    createdAt     DateTime @default(now()) @db.Timestamp(0)
+    updatedAt     DateTime @default(now()) @updatedAt @db.Timestamp(0)
+
+    user        User            @relation(fields: [userId], references: [id])
+    debt        Debt            @relation(fields: [debtId], references: [id])
+    transaction Transaction     @relation(fields: [transactionId], references: [id])
+    installment DebtInstallment @relation(fields: [installmentId], references: [id])
+
+    @@map("trs_debt_transaction")
+}
